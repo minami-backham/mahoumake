@@ -68,10 +68,14 @@ export const videoStream = async ({ frameId, videoId, canvasId, detectScale, rea
       top: -top + "px"
     };
 
-    video.width = size.w;
-    video.height = size.h;
-    video.style.width = styles.width;
-    video.style.height = styles.height;
+    video.width = 512;
+    video.height = 512;
+    video.style.width = 512 + "px";
+    video.style.height = 512 + "px";
+    // video.width = size.w;
+    // video.height = size.h;
+    // video.style.width = styles.width;
+    // video.style.height = styles.height;
     video.style.left = styles.left;
     video.style.top = styles.top;
 

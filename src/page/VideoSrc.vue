@@ -1,7 +1,7 @@
 <template>
   <div id="frame" class="source">
     <div class="videoFrame">
-      <video id="srcVideo" class="video" playsinline muted autoplay />
+      <video id="srcVideo" class="video" width="0" height="0" playsinline muted autoplay />
     </div>
     <div class="canvasFrame">
       <canvas id="video_shadow" class="video_shadow"></canvas>
@@ -93,6 +93,7 @@ export default {
         `;
 
       const fs = `
+        uniform sampler2D videoTexture;
         uniform sampler2D cheekTexture;
         uniform sampler2D eyeshadowTexture1;
         uniform sampler2D eyeshadowTexture5;
@@ -102,6 +103,7 @@ export default {
 
         varying vec2 vUv;
         void main()	{
+          vec4 video = texture2D(videoTexture, vUv);
           vec4 t1 = texture2D(cheekTexture, vUv);
           vec4 t2 = texture2D(eyeshadowTexture1, vUv);
           vec4 t3 = texture2D(eyeshadowTexture5, vUv);
@@ -113,8 +115,8 @@ export default {
           // dst: t2, src: t3 とする
 
           //通常合成
-          // vec3 c = t3.rgb * t3.a + t2.a * (1.0 - t3.a) * t2.rgb;
-          // float a = t2.a * t3.a + t2.a * (1.0 - t3.a) + (1.0 - t2.a) * t3.a;
+          vec3 c = t3.rgb * t3.a + t2.a * (1.0 - t3.a) * t2.rgb + video.rgb;
+          float a = t2.a * t3.a + t2.a * (1.0 - t3.a) + (1.0 - t2.a) * t3.a;
 
           //加算 add
           // vec3 c = vec3(
@@ -141,8 +143,8 @@ export default {
           // float a = t2.a * (1.0 - t3.a) + t3.a;
 
           //screen
-          vec3 c = t2.a * (1.0 - t3.a) * t2.rgb + t3.a * (((t3.rgb + t2.rgb) - (t3.rgb * t2.rgb)) * t2.a + (1.0 - t2.a) * t3.rgb);
-          float a = t2.a * (1.0 - t3.a) + t3.a;
+          // vec3 c = t2.a * (1.0 - t3.a) * t2.rgb + t3.a * (((t3.rgb + t2.rgb) - (t3.rgb * t2.rgb)) * t2.a + (1.0 - t2.a) * t3.rgb);
+          // float a = t2.a * (1.0 - t3.a) + t3.a;
 
           //overlay
           // vec3 c = vec3(
@@ -195,6 +197,13 @@ export default {
       geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
       // const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, color: 0xff00ff });
 
+      const video = document.getElementById("srcVideo");
+      const videoTexture = new THREE.VideoTexture(video);
+      videoTexture.generateMipmaps = false;
+      videoTexture.minFilter = THREE.LinearFilter;
+      videoTexture.maxFilter = THREE.LinearFilter;
+      videoTexture.format = THREE.RGBFormat;
+
       //テクスチャ
       const loader = new THREE.TextureLoader();
 
@@ -212,6 +221,7 @@ export default {
 
       //ユニフォーム
       let uniforms = {
+        videoTexture: { type: "t", value: videoTexture },
         cheekTexture: { type: "t", value: cheekTexture },
         eyeshadowTexture1: { type: "t", value: eyeshadowTexture1 },
         eyeshadowTexture5: { type: "t", value: eyeshadowTexture5 },
@@ -256,9 +266,9 @@ export default {
   position: relative;
 }
 
-.videoFrame {
-  display: none;
-}
+// .videoFrame {
+//   display: none;
+// }
 
 .overlay {
   z-index: 10;
