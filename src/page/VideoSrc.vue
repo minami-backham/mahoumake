@@ -100,6 +100,50 @@ export default {
         uniform vec3 col1;
         uniform vec3 col2;
         uniform vec3 col3;
+        uniform float opacity1;
+        uniform float opacity2;
+        uniform float opacity3;
+
+        vec3 normal(vec3 dst, vec3 src) {
+          return src.rgb;
+        }
+
+        vec3 add(vec3 dst, vec3 src) {
+          return vec3(min(1.0, dst.r + src.r),min(1.0, dst.g + src.g),min(1.0, dst.b + src.b));
+        }
+
+        vec3 subtract(vec3 dst, vec3 src) {
+          return abs(dst.rgb - src.rgb);
+        }
+
+        vec3 multiply(vec3 dst, vec3 src) {
+          return dst.rgb * src.rgb;
+        }
+
+        vec3 darken(vec3 dst, vec3 src) {
+          return min(dst.rgb, src.rgb);
+        }
+
+        vec3 lighten(vec3 dst, vec3 src) {
+          return max(dst.rgb, src.rgb);
+        }
+
+        vec3 screen(vec3 dst, vec3 src) {
+          return dst.rgb + src.rgb - (dst.rgb * src.rgb);
+        }
+
+        vec3 overlay(vec3 dst, vec3 src) {
+          // return vec3(
+          //     (dst.r <= 0.5) ? (2.0 * src.r * dst.r) : (1.0 - 2.0 * (1.0 - dst.r) * (1.0 - src.r)),
+          //     (dst.g <= 0.5) ? (2.0 * src.g * dst.g) : (1.0 - 2.0 * (1.0 - dst.g) * (1.0 - src.g)),
+          //     (dst.b <= 0.5) ? (2.0 * src.b * dst.b) : (1.0 - 2.0 * (1.0 - dst.b) * (1.0 - src.b))
+          //   );
+          return vec3(
+              (dst.r <= 0.5) ? (2.0 * src.r * dst.r) : (1.0 - (1.0 - 2.0 * (dst.r - 0.5)) * (1.0 - src.r)),
+              (dst.g <= 0.5) ? (2.0 * src.g * dst.g) : (1.0 - (1.0 - 2.0 * (dst.g - 0.5)) * (1.0 - src.g)),
+              (dst.b <= 0.5) ? (2.0 * src.b * dst.b) : (1.0 - (1.0 - 2.0 * (dst.b - 0.5)) * (1.0 - src.b))
+            );
+        }
 
         varying vec2 vUv;
         void main()	{
@@ -108,50 +152,45 @@ export default {
           vec4 t2 = texture2D(eyeshadowTexture1, vUv);
           vec4 t3 = texture2D(eyeshadowTexture5, vUv);
 
-          t1 = vec4(col1, t1.a);
-          t2 = vec4(col2, t2.a);
-          t3 = vec4(col3, t3.a);
+          t1 = vec4(col1, t1.a * opacity1);
+          t2 = vec4(col2, t2.a * opacity2);
+          t3 = vec4(col3, t3.a * opacity3);
 
-          // dst: t2, src: t3 とする
+          //不透明度
+          // float a = t2.a * t3.a + t2.a * (1.0 - t3.a) + (1.0 - t2.a) * t3.a;
+          float a = t3.a * (1.0 - t2.a) + t2.a;
 
           //通常合成
-          vec3 c = t3.rgb * t3.a + t2.a * (1.0 - t3.a) * t2.rgb + video.rgb;
-          float a = t2.a * t3.a + t2.a * (1.0 - t3.a) + (1.0 - t2.a) * t3.a;
+          // vec3 _c = t2.a * normal(t2.rgb, t3.rgb) + (1.0 - t2.a) * t3.rgb;
+          // vec3 c = t2.a * (1.0 - t3.a) * t2.rgb + t3.a * _c;
 
           //加算 add
-          // vec3 c = vec3(
-          //   min(1.0, t3.r + t2.r) * t2.a * t3.a + t2.a * (1.0 - t3.a) * t2.r + (1.0 - t2.a) * t3.a * t3.r,
-          //   min(1.0, t3.g + t2.g) * t2.a * t3.a + t2.a * (1.0 - t3.a) * t2.g + (1.0 - t2.a) * t3.a * t3.g,
-          //   min(1.0, t3.b + t2.b) * t2.a * t3.a + t2.a * (1.0 - t3.a) * t2.b + (1.0 - t2.a) * t3.a * t3.b
-          // );
-          // float a = t2.a * t3.a + t2.a * (1.0 - t3.a) + (1.0 - t2.a) * t3.a;
+          // vec3 _c = t2.a * add(t2.rgb, t3.rgb) + (1.0 - t2.a) * t3.rgb;
+          // vec3 c = t2.a * (1.0 - t3.a) * t2.rgb + t3.a * _c;
 
           //減算 subtract
-          // vec3 c = (t3.rgb - t2.rgb) * t2.a * t3.a + t2.a * (1.0 - t3.a) * t2.rgb + (1.0 - t2.a) * t3.a * t3.rgb;
-          // float a = t2.a * t3.a + t2.a * (1.0 - t3.a) + (1.0 - t2.a) * t3.a;
+          // vec3 _c = t2.a * subtract(t2.rgb, t3.rgb) + (1.0 - t2.a) * t3.rgb;
+          // vec3 c = t2.a * (1.0 - t3.a) * t2.rgb + t3.a * _c;
 
           //乗算 multiply
-          // vec3 c = (t3.rgb * t2.rgb) * t2.a * t3.a + t2.a * (1.0 - t3.a) * t2.rgb + (1.0 - t2.a) * t3.a * t3.rgb;
-          // float a = t2.a * t3.a + t2.a * (1.0 - t3.a) + (1.0 - t2.a) * t3.a;
+          // vec3 _c = t2.a * multiply(t2.rgb, t3.rgb) + (1.0 - t2.a) * t3.rgb;
+          // vec3 c = t2.a * (1.0 - t3.a) * t2.rgb + t3.a * _c;
 
           //darken
-          // vec3 c = t2.a * (1.0 - t3.a) * t2.rgb + t3.a * (min(t3.rgb, t2.rgb) * t2.a + (1.0 - t2.a) * t3.rgb);
-          // float a = t2.a * (1.0 - t3.a) + t3.a;
+          // vec3 _c = t2.a * darken(t2.rgb, t3.rgb) + (1.0 - t2.a) * t3.rgb;
+          // vec3 c = t2.a * (1.0 - t3.a) * t2.rgb + t3.a * _c;
 
           //lighten
-          // vec3 c = t2.a * (1.0 - t3.a) * t2.rgb + t3.a * (max(t3.rgb, t2.rgb) * t2.a + (1.0 - t2.a) * t3.rgb);
-          // float a = t2.a * (1.0 - t3.a) + t3.a;
+          // vec3 _c = t2.a * lighten(t2.rgb, t3.rgb) + (1.0 - t2.a) * t3.rgb;
+          // vec3 c = t2.a * (1.0 - t3.a) * t2.rgb + t3.a * _c;
 
           //screen
-          // vec3 c = t2.a * (1.0 - t3.a) * t2.rgb + t3.a * (((t3.rgb + t2.rgb) - (t3.rgb * t2.rgb)) * t2.a + (1.0 - t2.a) * t3.rgb);
-          // float a = t2.a * (1.0 - t3.a) + t3.a;
+          // vec3 _c = t2.a * screen(t2.rgb, t3.rgb) + (1.0 - t2.a) * t3.rgb;
+          // vec3 c = t2.a * (1.0 - t3.a) * t2.rgb + t3.a * _c;
 
           //overlay
-          // vec3 c = vec3(
-          // ((t2.r <= 0.5) ? (2.0 * t3.r * t2.r) : (1.0 - 2.0 * (1.0 - t2.r) * (1.0 - t3.r))) * t2.a + (1.0 - t2.a) * t3.r,
-          // ((t2.g <= 0.5) ? (2.0 * t3.g * t2.g) : (1.0 - 2.0 * (1.0 - t2.g) * (1.0 - t3.g))) * t2.a + (1.0 - t2.a) * t3.g,
-          // ((t2.b <= 0.5) ? (2.0 * t3.b * t2.b) : (1.0 - 2.0 * (1.0 - t2.b) * (1.0 - t3.b))) * t2.a + (1.0 - t2.a) * t3.b
-          // );
+          vec3 _c = t2.a * overlay(t2.rgb, t3.rgb) + (1.0 - t2.a) * t3.rgb;
+          vec3 c = t2.a * (1.0 - t3.a) * t2.rgb + t3.a * _c;
 
           gl_FragColor = vec4(c, a);
           // gl_FragColor = vec4(t3.rgb, t3.a);
@@ -227,7 +266,10 @@ export default {
         eyeshadowTexture5: { type: "t", value: eyeshadowTexture5 },
         col1: { type: "c", value: new THREE.Color("rgb(100%, 0%, 0%)") },
         col2: { type: "c", value: new THREE.Color("rgb(0%, 100%, 0%)") },
-        col3: { type: "c", value: new THREE.Color("rgb(0%, 0%, 100%)") }
+        col3: { type: "c", value: new THREE.Color("rgb(0%, 0%, 100%)") },
+        opacity1: { type: "f", value: "0.8" },
+        opacity2: { type: "f", value: "0.7" },
+        opacity3: { type: "f", value: "0.5" }
       };
 
       //マテリアル
